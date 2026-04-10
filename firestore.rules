@@ -1,0 +1,98 @@
+// ===============================================================
+// Assumed Data Model
+// ===============================================================
+//
+// Collection: users
+// Document ID: {userId} (matches Firebase Auth UID)
+// Fields:
+//   - uid: string (required) - The user's unique ID
+//   - displayName: string (required) - The user's display name
+//   - email: string (optional) - The user's email address
+//   - personalityResults: map (optional) - Results from personality tests
+//   - careerGoals: map (optional) - User's career objectives
+//   - academicRecord: map (optional) - User's academic history and scores
+//   - familyCondition: map (optional) - User's family background and preferences
+//   - role: string (optional) - User's role (e.g., 'admin', 'user')
+//
+// Collection: users/{userId}/chatHistory
+// Document ID: {messageId}
+// Fields:
+//   - role: string (required, 'user' or 'model') - The sender's role
+//   - content: string (required) - The message content
+//   - timestamp: timestamp (required) - When the message was sent
+//
+// ===============================================================
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (
+          (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', 'user') == 'admin') ||
+          (request.auth.token.email == "traichuoithanthien67@gmail.com" && request.auth.token.email_verified == true)
+        );
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'displayName']) &&
+             data.uid is string &&
+             data.displayName is string &&
+             data.displayName.size() > 0 && data.displayName.size() < 100 &&
+             (!('email' in data) || (data.email is string && data.email.size() < 100)) &&
+             (!('role' in data) || data.role in ['user', 'admin']);
+    }
+
+    function isValidChatMessage(data) {
+      return data.keys().hasAll(['role', 'content', 'timestamp']) &&
+             data.role in ['user', 'model'] &&
+             data.content is string && data.content.size() > 0 && data.content.size() < 10000 &&
+             (data.timestamp is timestamp || data.timestamp is string);
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /test/connection {
+      allow read: if isAuthenticated();
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      
+      // Only allow creation if the user is the owner and data is valid
+      // Prevent self-escalation to admin unless already an admin
+      allow create: if isOwner(userId) && isValidUser(request.resource.data) && 
+                    (request.resource.data.get('role', 'user') == 'user' || isAdmin());
+      
+      // Only allow updates if the user is the owner and data is valid
+      // Prevent self-escalation to admin unless already an admin
+      allow update: if isOwner(userId) && isValidUser(request.resource.data) && 
+                    (request.resource.data.get('role', 'user') == resource.data.get('role', 'user') || isAdmin());
+      
+      allow delete: if isAdmin();
+
+      match /chatHistory/{messageId} {
+        allow read: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId) && isValidChatMessage(request.resource.data);
+        allow update: if isOwner(userId) && isValidChatMessage(request.resource.data);
+        allow delete: if isOwner(userId) || isAdmin();
+      }
+    }
+  }
+}

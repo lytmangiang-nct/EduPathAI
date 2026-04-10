@@ -1,0 +1,74 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "Stores user information, test results, and survey data.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "displayName": { "type": "string" },
+        "email": { "type": "string" },
+        "personalityResults": {
+          "type": "object",
+          "properties": {
+            "holland": { "type": "string" },
+            "creativeTypes": { "type": "string" },
+            "mbti": { "type": "string" }
+          }
+        },
+        "careerGoals": {
+          "type": "object",
+          "properties": {
+            "environment": { "type": "string" },
+            "lifeGoals": { "type": "string" },
+            "expectedSalary": { "type": "number" },
+            "futureDirection": { "type": "string" }
+          }
+        },
+        "academicRecord": {
+          "type": "object",
+          "properties": {
+            "selfAssessment": { "type": "string" },
+            "studyGroup": { "type": "string" },
+            "favoriteSubjects": { "type": "array", "items": { "type": "string" } },
+            "goodSubjects": { "type": "array", "items": { "type": "string" } },
+            "weakSubjects": { "type": "array", "items": { "type": "string" } },
+            "examScores": { "type": "object" },
+            "competencyScore": { "type": "number" },
+            "gpa": { "type": "number" },
+            "certificates": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "familyCondition": {
+          "type": "object",
+          "properties": {
+            "locationPreference": { "type": "string" },
+            "tuitionBudget": { "type": "number" }
+          }
+        }
+      },
+      "required": ["uid", "displayName"]
+    },
+    "ChatMessage": {
+      "title": "Chat Message",
+      "description": "A single message in a chat session.",
+      "type": "object",
+      "properties": {
+        "role": { "type": "string", "enum": ["user", "model"] },
+        "content": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["role", "content", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profile document."
+    },
+    "/users/{userId}/chatHistory/{messageId}": {
+      "schema": "ChatMessage",
+      "description": "Messages for the AI consulting chat."
+    }
+  }
+}
